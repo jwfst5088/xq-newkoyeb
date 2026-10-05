@@ -1,0 +1,7 @@
+node_modules/
+data/
+*.log
+.DS_Store
+*.bak
+*-备份.js
+*-副本.js

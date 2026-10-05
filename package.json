@@ -1,0 +1,15 @@
+{
+  "name": "xq-koyeb",
+  "version": "2.0.0",
+  "description": "象棋弈台 - xiangqi online (serv00 版 1:1 移植, 零依赖 node:sqlite) on Koyeb",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node test/smoke-test.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {},
+  "private": true
+}

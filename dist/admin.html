@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>管理后台 - 中国象棋</title>
+<style>
+body{background:#1a0f0a;color:#e8d5b5;font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif;margin:0;padding:24px;box-sizing:border-box}
+h2{color:#d4a843;margin:0 0 16px}
+input,button{font-family:inherit}
+input{background:#2c1810;border:1px solid #5a3a28;color:#e8d5b5;border-radius:6px;padding:8px 10px;outline:none}
+input:focus{border-color:#d4a843}
+button{background:#3d2117;border:1px solid #d4a843;color:#d4a843;border-radius:6px;padding:8px 16px;cursor:pointer;font-weight:700}
+button:hover{background:#4d2c1d}
+table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+th{color:#d4a843;text-align:left;padding:6px 8px;border-bottom:1px solid #5a3a28;white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid #2c1810}
+.num{width:80px}
+.err{color:#e74c3c;font-size:13px;min-height:18px;margin-top:8px}
+.ok{color:#2ecc71;font-size:13px;min-height:18px;margin-top:8px}
+.mut{color:#8b7355;font-size:12px}
+.save{padding:3px 10px;font-size:12px}
+.wrap{max-width:1080px;margin:0 auto}
+.egPiece{position:absolute;width:29px;height:29px;border-radius:50%;font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 -1px 2px rgba(255,255,255,.42),0 3px 5px rgba(55,30,10,.42);background:radial-gradient(circle at 35% 25%,#f5e4c0 0%,#d4a860 45%,#906030 100%);color:#8b0000;border:2px solid #8b4513;box-sizing:border-box;line-height:1;pointer-events:none;z-index:2}
+.egPiece.egB{color:#1a1a2e;border-color:#4a4a4a}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h2>🎯 棋力管理后台</h2>
+<div id="loginBox">
+  <div style="margin:10px 0">
+    <input id="admUser" placeholder="管理员账号" style="width:150px" onkeydown="if(event.key==='Enter')login()">
+    <input id="pwd" type="password" placeholder="管理密码" style="width:220px;margin-left:8px" onkeydown="if(event.key==='Enter')login()">
+    <button onclick="login()" style="margin-left:8px">登录</button>
+  </div>
+  <div class="err" id="lerr"></div>
+</div>
+<div id="panel" style="display:none">
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <b id="cnt" style="color:#d4a843"></b>
+    <input id="q" placeholder="搜索名字/设备号" style="width:220px" oninput="render()">
+    <button onclick="load()">刷新</button>
+    <button onclick="logout()">退出登录</button>
+  </div>
+  <div id="msg" class="ok"></div>
+  <div style="overflow-x:auto">
+    <table>
+      <thead><tr><th>名字</th><th>段位</th><th>棋力分</th><th>场次</th><th>胜/负/和</th><th>会员</th><th>设备/账号ID</th><th>最后在线</th><th>操作</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div class="mut" style="margin-top:10px">修改棋力分后段位自动对应；范围 -250 ~ 7000（学1-1 = -160 起）</div>
+  <hr style="border:none;border-top:1px solid #5a3a28;margin:22px 0">
+  <h2 style="font-size:18px">👑 会员管理</h2>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <input id="vipCount" type="number" value="5" min="1" max="50" class="num" title="生成数量">
+    <span class="mut">张</span>
+    <input id="vipDays" type="number" value="30" min="1" max="36500" class="num" title="有效天数">
+    <span class="mut">天</span>
+    <button onclick="vipGen()">生成兑换码</button>
+    <button onclick="vipCodes()">兑换码列表</button>
+    <button onclick="vipMembers()">会员列表</button>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+    <button style="width:auto;flex-shrink:0" onclick="document.getElementById('vipDays').value=30">月卡 30 天</button>
+    <button style="width:auto;flex-shrink:0" onclick="document.getElementById('vipDays').value=90">季卡 90 天</button>
+    <button style="width:auto;flex-shrink:0" onclick="document.getElementById('vipDays').value=190">半年 190 天</button>
+    <button style="width:auto;flex-shrink:0" onclick="document.getElementById('vipDays').value=365">年卡 365 天</button>
+    <button style="width:auto;flex-shrink:0;background:linear-gradient(135deg,#ffe9a8,#f5c542,#d4a017);color:#3d2117;font-weight:800" onclick="document.getElementById('vipDays').value=36135">👑 永久 99 年</button>
+  </div>
+  <div id="vipMsg" class="ok"></div>
+  <div id="vipGenOut" style="margin-top:10px;display:none"></div>
+  <div id="vipOut" style="margin-top:10px"></div>
+  <hr style="border:none;border-top:1px solid #5a3a28;margin:22px 0">
+  <h2 style="font-size:18px">💰 付款订单确认</h2>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <button onclick="payList()">刷新付款订单</button>
+    <span class="mut">玩家付款并联系你后，点「确认收款」，其页面会自动出现兑换码</span>
+  </div>
+  <div id="payMsg" class="ok"></div>
+  <div id="payOut" style="margin-top:10px;overflow:auto"></div>
+  <hr style="border:none;border-top:1px solid #5a3a28;margin:22px 0">
+  <h2 style="font-size:18px">📢 大厅公告</h2>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+    <input id="annText" placeholder="公告内容（多条用换行分隔，大厅轮播）" style="flex:1;min-width:280px;padding:8px;background:#241611;color:#f0d9b5;border:1px solid #5a3a28;border-radius:6px" maxlength="500">
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <input id="annUrl" placeholder="点击公告跳转的链接（可选）" style="flex:1;min-width:240px;padding:8px;background:#241611;color:#f0d9b5;border:1px solid #5a3a28;border-radius:6px" maxlength="300">
+    <button onclick="annPublish()">📢 发布公告</button>
+    <button onclick="annClear()">🧹 撤下公告</button>
+  </div>
+  <div id="annMsg" class="ok"></div>
+  <hr style="border:none;border-top:1px solid #5a3a28;margin:22px 0">
+  <h2 style="font-size:18px">🎯 残局管理</h2>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <button onclick="egList()">刷新残局列表</button>
+    <button onclick="egResetForm()">新建残局</button>
+  </div>
+  <div id="egMsg" class="ok"></div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px">
+    <div style="flex:1;min-width:280px">
+      <div style="margin-bottom:6px"><b>残局列表</b></div>
+      <div id="egOut" style="max-height:420px;overflow:auto"></div>
+    </div>
+    <div style="flex:1;min-width:320px">
+      <div style="margin-bottom:6px"><b id="egFormTitle">新建残局</b></div>
+      <div style="margin-bottom:6px"><input id="egName" placeholder="残局名称（如：马炮争雄）" style="width:100%;padding:7px;background:#241611;color:#f0d9b5;border:1px solid #5a3a28;border-radius:6px" maxlength="30"></div>
+      <div style="margin-bottom:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">难度 <select id="egDiff" style="background:#241611;color:#f0d9b5;border:1px solid #5a3a28;border-radius:6px;padding:5px"><option value="1">★</option><option value="2">★★</option><option value="3">★★★</option><option value="4">★★★★</option><option value="5">★★★★★</option></select> 玩家执 <select id="egSide" style="background:#241611;color:#f0d9b5;border:1px solid #5a3a28;border-radius:6px;padding:5px"><option value="red">红方</option><option value="black">黑方</option></select></div>
+      <div style="margin-bottom:6px"><input id="egGoal" placeholder="目标说明（如：三步内将死黑方）" style="width:100%;padding:7px;background:#241611;color:#f0d9b5;border:1px solid #5a3a28;border-radius:6px" maxlength="60"></div>
+      <div style="margin-bottom:6px"><b>参考走法（棋谱）:</b> <span id="egAnsInfo" class="mut">未录入</span> <button onclick="egAnsClear()" style="padding:4px 12px">清空</button></div>
+      <div style="margin-bottom:6px"><textarea id="egAnsText" placeholder="粘贴中式棋谱，如：1. 前车进三 士５退６ 2. 炮二进六 士６进５ ..." style="width:100%;height:84px;background:#241611;color:#f0d9b5;border:1px solid #5a3a28;border-radius:6px;padding:7px;font-size:13px;line-height:1.6"></textarea></div>
+      <div style="margin-bottom:6px" class="mut">摆局：先点下方棋子按钮选中，再点棋盘格放置；点击已有棋子的格子可清除。录制参考走法时直接在棋盘上依次点击 起点→终点 记录每一步。</div>
+      <div id="egPick" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px"></div>
+      <div id="egBoard" style="position:relative;width:296px;height:330px;margin-bottom:6px;box-shadow:0 3px 14px rgba(0,0,0,.55);border-radius:4px;overflow:hidden"><canvas id="egBg" width="296" height="330" style="position:absolute;left:0;top:0"></canvas><div id="egPieces" style="position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none"></div></div>
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button onclick="egSave()" style="background:#3f6f3f">💾 保存残局</button> <button onclick="egResetForm()">清空重摆</button> <span id="egCount" class="mut" style="align-self:center"></span></div>
+    </div>
+  </div>
+</div>
+</div>
+<script>
+var TOKEN = localStorage.getItem("xq_admin_token") || "";
+var DATA = [];
+function api(p, b) {
+  return fetch(p, { method: b ? "POST" : "GET", headers: { "Content-Type": "application/json" }, body: b ? JSON.stringify(b) : undefined }).then(function (r) { return r.json(); });
+}
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; });
+}
+function login() {
+  var p = document.getElementById("pwd").value;
+  var un = (document.getElementById("admUser") || { value: "" }).value;
+  api("/api/admin/login", { username: un, password: p }).then(function (r) {
+    if (r && r.ok) {
+      TOKEN = r.token;
+      localStorage.setItem("xq_admin_token", TOKEN);
+      enter();
+    } else {
+      document.getElementById("lerr").textContent = (r && r.error) || "登录失败";
+    }
+  }).catch(function () { document.getElementById("lerr").textContent = "网络异常"; });
+}
+function enter() {
+  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("panel").style.display = "";
+  load();
+}
+function logout() {
+  localStorage.removeItem("xq_admin_token");
+  location.reload();
+}
+function load() {
+  api("/api/admin/players?token=" + encodeURIComponent(TOKEN)).then(function (r) {
+    if (r && r.ok) {
+      DATA = r.list || [];
+      document.getElementById("cnt").textContent = "玩家总数: " + DATA.length;
+      render();
+    } else {
+      localStorage.removeItem("xq_admin_token");
+      document.getElementById("panel").style.display = "none";
+      document.getElementById("loginBox").style.display = "";
+      document.getElementById("lerr").textContent = (r && r.error) || "请重新登录";
+    }
+  }).catch(function () {});
+}
+function render() {
+  var q = (document.getElementById("q").value || "").toLowerCase();
+  var rows = document.getElementById("rows");
+  var h = "";
+  DATA.forEach(function (p, i) {
+    var id = p.deviceId || "";
+    if (q && id.toLowerCase().indexOf(q) < 0 && (p.name || "").toLowerCase().indexOf(q) < 0) return;
+    h += "<tr>"
+      + "<td>" + esc(p.name || "(未命名)") + "</td>"
+      + "<td>" + esc(p.title || "") + "</td>"
+      + "<td><input class=\"num\" type=\"number\" id=\"sc_" + i + "\" value=\"" + p.elo + "\"></td>"
+      + "<td>" + p.games + "</td>"
+      + "<td>" + p.wins + "/" + p.losses + "/" + p.draws + "</td>"
+      + "<td>" + (p.vip ? ("<span style=\"color:#d4a843;font-weight:800\">👑 " + esc(p.vip.tier || "vip") + " · 至 " + new Date(p.vip.expiresAt).toLocaleDateString() + "</span>") : "<span class=\"mut\">—</span>") + "</td>"
+      + "<td class=\"mut\" style=\"max-width:220px;word-break:break-all\">" + esc(id) + "</td>"
+      + "<td class=\"mut\">" + (p.last_seen ? new Date(p.last_seen).toLocaleString() : "-") + "</td>"
+      + "<td><button class=\"save\" onclick=\"save(" + i + ")\">保存</button> <button class=\"save\" onclick=\"rp(" + i + ")\">改密</button> <button class=\"save\" onclick=\"vipToggle(" + i + ")\">" + (p.vip ? "取消会员" : "开通会员") + "</button> <button class=\"save\" style=\"border-color:#e74c3c;color:#e74c3c\" onclick=\"del(" + i + ")\">删除</button></td>"
+      + "</tr>";
+  });
+  rows.innerHTML = h || '<tr><td colspan="9" class="mut">无匹配玩家</td></tr>';
+}
+function vipToggle(i) {
+  var p = DATA[i];
+  var m = document.getElementById("msg");
+  if (p.vip) {
+    if (!confirm("取消账号「" + (p.name || p.deviceId) + "」的会员资格？")) return;
+    api("/api/admin/setVip", { token: TOKEN, deviceId: p.deviceId, days: 0 }).then(function (r) {
+      if (r && r.ok) { p.vip = null; m.textContent = "✔ 已取消会员: " + (p.name || p.deviceId); render(); } else { m.textContent = "✘ " + ((r && r.error) || "失败"); }
+    }).catch(function () { m.textContent = "网络异常"; });
+  } else {
+    var d = prompt("为账号「" + (p.name || p.deviceId) + "」开通会员，输入有效天数：", "30");
+    if (d == null) return;
+    d = Math.round(Number(d));
+    if (!Number.isFinite(d) || d <= 0) { m.textContent = "✘ 天数需为正整数"; return; }
+    api("/api/admin/setVip", { token: TOKEN, deviceId: p.deviceId, days: d }).then(function (r) {
+      if (r && r.ok) { p.vip = r.vip; m.textContent = "✔ 已开通会员 " + d + " 天: " + (p.name || p.deviceId); render(); } else { m.textContent = "✘ " + ((r && r.error) || "失败"); }
+    }).catch(function () { m.textContent = "网络异常"; });
+  }
+}
+function save(i) {
+  var p = DATA[i];
+  var v = Number(document.getElementById("sc_" + i).value);
+  api("/api/admin/setScore", { token: TOKEN, deviceId: p.deviceId, score: v }).then(function (r) {
+    var m = document.getElementById("msg");
+    if (r && r.ok) {
+      p.elo = r.player.elo;
+      p.title = r.player.title;
+      m.textContent = "✔ 已保存: " + (p.name || p.deviceId) + " → " + p.elo + "（" + p.title + "）";
+      render();
+    } else {
+      m.textContent = "✘ " + ((r && r.error) || "失败");
+    }
+  }).catch(function () { document.getElementById("msg").textContent = "网络异常"; });
+}
+function rp(i) {
+  var p = DATA[i];
+  if (!p.deviceId || p.deviceId.indexOf("U:") !== 0) { document.getElementById("msg").textContent = "✘ 该玩家是游客，无账号密码"; return; }
+  var np = prompt("为账号「" + p.deviceId.slice(2) + "」设置新密码（6~64位）：\n（密码加密存储，无法查看原密码，只能重置）", "");
+  if (np == null) return;
+  if (np.length < 6 || np.length > 64) { document.getElementById("msg").textContent = "✘ 密码需6~64位"; return; }
+  api("/api/admin/resetPassword", { token: TOKEN, username: p.deviceId.slice(2), newPassword: np }).then(function (r) {
+    var m = document.getElementById("msg");
+    m.textContent = (r && r.ok) ? "✔ 已重置 " + r.username + " 的密码" : "✘ " + ((r && r.error) || "失败");
+  }).catch(function () { document.getElementById("msg").textContent = "网络异常"; });
+}
+function del(i) {
+  var p = DATA[i];
+  if (!confirm("确定删除玩家 " + (p.name || p.deviceId) + "（" + p.deviceId + "）？此操作不可恢复。")) return;
+  api("/api/admin/deletePlayer", { token: TOKEN, deviceId: p.deviceId }).then(function (r) {
+    var m = document.getElementById("msg");
+    if (r && r.ok) {
+      m.textContent = "✔ 已删除: " + (p.name || p.deviceId);
+      DATA.splice(i, 1);
+      document.getElementById("cnt").textContent = "玩家总数: " + DATA.length;
+      render();
+    } else {
+      m.textContent = "✘ " + ((r && r.error) || "删除失败");
+    }
+  }).catch(function () { document.getElementById("msg").textContent = "网络异常"; });
+}
+function vipGen() {
+  var count = Number(document.getElementById("vipCount").value) || 1;
+  var days = Number(document.getElementById("vipDays").value) || 30;
+  api("/api/admin/vip/generate", { token: TOKEN, count: count, days: days, tier: "vip" }).then(function (r) {
+    var m = document.getElementById("vipMsg");
+    if (r && r.ok) {
+      m.textContent = "✔ 已生成 " + r.codes.length + " 个兑换码（" + days + " 天）";
+      var gout = document.getElementById("vipGenOut");
+      gout.innerHTML = '<div class="mut" style="margin:10px 0 6px">🎉 本次生成的兑换码（点击文本框全选复制，请立即保存）：</div><textarea readonly onclick="this.select()" style="width:100%;height:' + Math.max(70, r.codes.length * 22 + 16) + 'px;background:#2c1810;color:#f5c542;border:1px solid #d4a843;border-radius:6px;padding:8px;font-family:monospace;font-size:14px;font-weight:700">' + esc(r.codes.join("\n")) + '</textarea>';
+      gout.style.display = "";
+    } else {
+      m.textContent = "✘ " + ((r && r.error) || "生成失败");
+    }
+  }).catch(function () { document.getElementById("vipMsg").textContent = "网络异常"; });
+}
+function daysLabel(d) { d = Number(d) || 0; var m = { 30: "(月卡)", 90: "(季卡)", 180: "(旧半年180天)", 190: "(半年)", 365: "(年卡)", 36135: "(永久99年)" }; return d + "天" + (m[d] || ""); }
+function annPublish() {
+  var t = (document.getElementById("annText").value || "").trim();
+  var u = (document.getElementById("annUrl").value || "").trim();
+  var m = document.getElementById("annMsg");
+  if (!t) { m.textContent = "✘ 公告内容为空"; return; }
+  api("/api/admin/announce", { token: TOKEN, text: t, url: u }).then(function (r) {
+    if (r && r.ok) { m.textContent = "✔ 公告已发布，大厅实时轮播"; }
+    else m.textContent = "✘ 发布失败" + (r && r.error ? "：" + r.error : "");
+  }).catch(function () { m.textContent = "✘ 网络异常"; });
+}
+function annClear() {
+  var m = document.getElementById("annMsg");
+  api("/api/admin/announce", { token: TOKEN, clear: true }).then(function (r) {
+    if (r && r.ok) { m.textContent = "✔ 公告已撤下"; }
+    else m.textContent = "✘ 操作失败";
+  }).catch(function () { m.textContent = "✘ 网络异常"; });
+}
+function payList() {
+  api("/api/admin/pay/list?token=" + encodeURIComponent(TOKEN)).then(function (r) {
+    var m = document.getElementById("payMsg");
+    if (!(r && r.ok)) { m.textContent = "✘ 加载失败"; return; }
+    var os = r.orders || [];
+    if (!os.length) { m.textContent = "暂无订单"; document.getElementById("payOut").innerHTML = ""; return; }
+    var h = '<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="color:#d4a843"><th style="text-align:left;padding:4px 6px">时间</th><th style="text-align:left;padding:4px 6px">档位</th><th style="text-align:left;padding:4px 6px">金额</th><th style="text-align:left;padding:4px 6px">状态</th><th style="text-align:left;padding:4px 6px">订单号</th><th style="padding:4px 6px">操作</th></tr>';
+    for (var i = 0; i < os.length; i++) {
+      var o = os[i];
+      h += '<tr style="border-top:1px solid #5a3a28"><td style="padding:5px 6px">' + new Date(o.created_at).toLocaleString('zh-CN') + '</td><td style="padding:5px 6px">' + esc(daysLabel(o.days)) + '</td><td style="padding:5px 6px;font-weight:700;color:#f5c542">¥' + (o.amount_cents / 100).toFixed(2) + '</td><td style="padding:5px 6px">' + (o.status === 'paid' ? '<span style="color:#2ecc71">✔已付款</span> ' + esc(o.code || '') : '<span style="color:#e67e22">待确认</span>') + '</td><td style="padding:5px 6px;font-family:monospace">' + esc(o.id.slice(0, 8)) + '</td><td style="padding:5px 6px;text-align:center">' + (o.status !== 'paid' ? '<button style="width:auto;flex-shrink:0;background:linear-gradient(135deg,#ffe9a8,#f5c542,#d4a017);color:#3d2117;font-weight:800" onclick="payConfirm(\'' + o.id + '\')">确认收款</button>' : '') + '</td></tr>';
+    }
+    document.getElementById("payOut").innerHTML = h + '</table>';
+    m.textContent = "共 " + os.length + " 单";
+  }).catch(function () { document.getElementById("payMsg").textContent = "网络异常"; });
+}
+function payConfirm(id) {
+  if (!confirm("确认该订单已收款？确认后将自动生成兑换码，买家页面会自动显示。")) return;
+  api("/api/admin/pay/confirm", { token: TOKEN, orderId: id }).then(function (r) {
+    var m = document.getElementById("payMsg");
+    if (r && r.ok) { m.textContent = "✔ 已确认" + (r.already ? "（此前已确认）" : "") + "，兑换码：" + (r.code || ""); payList(); }
+    else { m.textContent = "✘ " + ((r && r.error) || "操作失败"); }
+  }).catch(function () { document.getElementById("payMsg").textContent = "网络异常"; });
+}
+function ckAll(box, cls) { var els = document.querySelectorAll("." + cls); for (var i = 0; i < els.length; i++) els[i].checked = box.checked; }
+function vipBatchDel(type) {
+  var cls = type === 'members' ? 'ckMember' : 'ckCode';
+  var els = document.querySelectorAll('.' + cls + ':checked');
+  if (!els.length) { document.getElementById('vipMsg').textContent = '请先勾选要删除的项'; return; }
+  if (!confirm('确定删除选中的 ' + els.length + ' 项？此操作不可恢复')) return;
+  var ids = []; for (var i = 0; i < els.length; i++) ids.push(els[i].value);
+  api('/api/admin/vip/batch_delete', { token: TOKEN, type: type, ids: ids }).then(function (r) {
+    var m = document.getElementById('vipMsg');
+    if (r && r.ok) { m.textContent = '✔ 已删除 ' + r.deleted + ' 项'; if (type === 'members') vipMembers(); else vipCodes(); }
+    else { m.textContent = '✘ ' + ((r && r.error) || '删除失败'); }
+  }).catch(function () { document.getElementById('vipMsg').textContent = '网络异常'; });
+}
+function vipCodes() {
+  api("/api/admin/vip/codes?token=" + encodeURIComponent(TOKEN)).then(function (r) {
+    var out = document.getElementById("vipOut");
+    if (r && r.ok) {
+      var h = '<div style="margin-bottom:6px"><button style="width:auto;background:#8b2f2f;color:#fff" onclick="vipBatchDel(\'codes\')">🗑 删除选中兑换码</button></div><table><thead><tr><th>选</th><th>兑换码</th><th>天数</th><th>状态</th><th>使用者</th><th>使用时间</th><th>生成时间</th></tr></thead><tbody>';
+      (r.codes || []).forEach(function (c) {
+        h += "<tr><td><input type='checkbox' class='ckCode' value='" + esc(c.code) + "'></td><td style='font-family:monospace;color:#d4a843'>" + esc(c.code) + "</td><td>" + daysLabel(c.days) + "</td><td>" + (c.used_by ? "已使用" : "可用") + "</td><td class='mut' style='max-width:200px;word-break:break-all'>" + esc(c.used_by || "-") + "</td><td class='mut'>" + (c.used_at ? new Date(c.used_at).toLocaleString() : "-") + "</td><td class='mut'>" + new Date(c.created_at).toLocaleString() + "</td></tr>";
+      });
+      out.innerHTML = h + "</tbody></table>";
+    } else { out.innerHTML = '<div class="err">加载失败</div>'; }
+  }).catch(function () { document.getElementById("vipMsg").textContent = "网络异常"; });
+}
+function vipMembers() {
+  api("/api/admin/vip/members?token=" + encodeURIComponent(TOKEN)).then(function (r) {
+    var out = document.getElementById("vipOut");
+    if (r && r.ok) {
+      var h = '<div style="margin-bottom:6px"><button style="width:auto;background:#8b2f2f;color:#fff" onclick="vipBatchDel(\'members\')">🗑 删除选中会员</button></div><table><thead><tr><th>选</th><th>身份ID</th><th>档位</th><th>到期时间</th><th>开通来源</th><th>开通时间</th></tr></thead><tbody>';
+      (r.members || []).forEach(function (mm) {
+        h += "<tr><td><input type='checkbox' class='ckMember' value='" + esc(mm.id) + "'></td><td class='mut' style='max-width:240px;word-break:break-all'>" + esc(mm.id) + "</td><td>" + esc(mm.tier || "vip") + "</td><td>" + new Date(mm.expires_at).toLocaleString() + "</td><td class='mut' style='max-width:160px;word-break:break-all'>" + esc(mm.source || "-") + "</td><td class='mut'>" + new Date(mm.created_at).toLocaleString() + "</td></tr>";
+      });
+      out.innerHTML = h + "</tbody></table>";
+    } else { out.innerHTML = '<div class="err">加载失败</div>'; }
+  }).catch(function () { document.getElementById("vipMsg").textContent = "网络异常"; });
+}
+var EG_TYPES = [["rook","车"],["horse","马"],["elephant","相"],["advisor","仕"],["king","帅"],["cannon","炮"],["pawn","兵"]];
+var EG_TB = [["rook","车"],["horse","马"],["elephant","象"],["advisor","士"],["king","将"],["cannon","炮"],["pawn","卒"]];
+var EG_CHARS = { red: { rook: "车", horse: "马", elephant: "相", advisor: "仕", king: "帅", cannon: "炮", pawn: "兵" }, black: { rook: "车", horse: "马", elephant: "象", advisor: "士", king: "将", cannon: "炮", pawn: "卒" } };
+var egPieces = [];
+var egPick = null; // {type,color}
+function egMsg(t) { document.getElementById("egMsg").textContent = t; }
+function egBuildPicker() {
+  var pk = document.getElementById("egPick");
+  var h = "<span class='mut' style='align-self:center'>红：</span>";
+  EG_TYPES.forEach(function (t) { h += "<button style='width:auto;color:#ffd9a0;' onclick='egPickType(\"" + t[0] + "\",\"red\")'>" + t[1] + "</button>"; });
+  h += "<span class='mut' style='align-self:center;margin-left:8px'>黑：</span>";
+  EG_TB.forEach(function (t) { h += "<button style='width:auto;color:#9cc0ff' onclick='egPickType(\"" + t[0] + "\",\"black\")'>" + t[1] + "</button>"; });
+  pk.innerHTML = h;
+}
+function egPickType(type, color) { egPick = { type: type, color: color }; egMsg("已选中" + (color === "red" ? "红" : "黑") + EG_CHARS[color][type] + "，点击棋盘放置"); }
+var EG_PS = 12, EG_RCS = 34, EG_W = 296, EG_H = 330;
+function egDrawBg() {
+  var cv = document.getElementById("egBg");
+  var ctx = cv.getContext("2d");
+  var ps = EG_PS, bw = EG_W - ps * 2, bh = EG_H - ps * 2;
+  var wood = ctx.createLinearGradient(0, ps, 0, ps + bh);
+  wood.addColorStop(0, "#c28e56"); wood.addColorStop(0.5, "#e8c99a"); wood.addColorStop(1, "#e0b383");
+  ctx.fillStyle = "#d4a56a"; ctx.fillRect(ps - 4, ps - 4, bw + 8, bh + 8);
+  ctx.fillStyle = wood; ctx.fillRect(ps, ps, bw, bh);
+  ctx.strokeStyle = "#9c7550"; ctx.lineWidth = 1.2;
+  for (var r = 0; r < 10; r++) { var y = ps + r * (bh / 9); ctx.beginPath(); ctx.moveTo(ps, y); ctx.lineTo(ps + bw, y); ctx.stroke(); }
+  for (var c = 0; c < 9; c++) {
+    var x = ps + c * (bw / 8);
+    if (c === 0 || c === 8) { ctx.beginPath(); ctx.moveTo(x, ps); ctx.lineTo(x, ps + bh); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.moveTo(x, ps); ctx.lineTo(x, ps + 4 * (bh / 9)); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, ps + 5 * (bh / 9)); ctx.lineTo(x, ps + bh); ctx.stroke(); }
+  }
+  ctx.beginPath(); ctx.moveTo(ps + bw * 3 / 8, ps); ctx.lineTo(ps + bw * 5 / 8, ps + bh * 2 / 9); ctx.moveTo(ps + bw * 5 / 8, ps); ctx.lineTo(ps + bw * 3 / 8, ps + bh * 2 / 9); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ps + bw * 3 / 8, ps + bh * 7 / 9); ctx.lineTo(ps + bw * 5 / 8, ps + bh); ctx.moveTo(ps + bw * 5 / 8, ps + bh * 7 / 9); ctx.lineTo(ps + bw * 3 / 8, ps + bh); ctx.stroke();
+  var _stL = 5.4, _d = 2.7;
+  var _star = [[2,1],[2,7],[7,1],[7,7],[3,0],[3,2],[3,4],[3,6],[3,8],[6,0],[6,2],[6,4],[6,6],[6,8]];
+  ctx.strokeStyle = "#a07840"; ctx.lineWidth = 0.8;
+  for (var si = 0; si < _star.length; si++) {
+    var sy = ps + _star[si][0] * (bh / 9), sx = ps + _star[si][1] * (bw / 8);
+    var skipL = _star[si][1] === 0, skipR = _star[si][1] === 8;
+    if (!skipL) { ctx.beginPath(); ctx.moveTo(sx - _d - _stL, sy - _d); ctx.lineTo(sx - _d, sy - _d); ctx.lineTo(sx - _d, sy - _d - _stL); ctx.stroke(); ctx.beginPath(); ctx.moveTo(sx - _d - _stL, sy + _d); ctx.lineTo(sx - _d, sy + _d); ctx.lineTo(sx - _d, sy + _d + _stL); ctx.stroke(); }
+    if (!skipR) { ctx.beginPath(); ctx.moveTo(sx + _d + _stL, sy - _d); ctx.lineTo(sx + _d, sy - _d); ctx.lineTo(sx + _d, sy - _d - _stL); ctx.stroke(); ctx.beginPath(); ctx.moveTo(sx + _d + _stL, sy + _d); ctx.lineTo(sx + _d, sy + _d); ctx.lineTo(sx + _d, sy + _d + _stL); ctx.stroke(); }
+  }
+  ctx.fillStyle = "rgba(90,58,40,.85)"; ctx.font = "700 13px serif"; ctx.textAlign = "center";
+  ctx.fillText("楚  河", ps + bw * 0.28, ps + bh * 0.52);
+  ctx.fillText("汉  界", ps + bw * 0.72, ps + bh * 0.52);
+}
+function egBuildBoard() {
+  egDrawBg();
+  var pv = document.getElementById("egPieces");
+  var h = "";
+  for (var r = 0; r < 10; r++) for (var c = 0; c < 9; c++) {
+    var pc = egFind(r, c);
+    var ch = pc ? EG_CHARS[pc.color][pc.type] : "";
+    if (pc) h += '<div class="egPiece' + (pc.color === "black" ? " egB" : "") + '" style="left:' + (EG_PS + c * EG_RCS) + 'px;top:' + (EG_PS + r * EG_RCS) + 'px;margin:-15px 0 0 -15px">'+ ch + '</div>';
+  }
+  pv.innerHTML = h;
+  var bd = document.getElementById("egBoard");
+  var o = "";
+  for (var r2 = 0; r2 < 10; r2++) for (var c2 = 0; c2 < 9; c2++) {
+    o += '<div data-r="' + r2 + '" data-c="' + c2 + '" onclick="egCell(' + r2 + ',' + c2 + ')" style="position:absolute;left:' + (EG_PS + c2 * EG_RCS - 17) + 'px;top:' + (EG_PS + r2 * EG_RCS - 17) + 'px;width:34px;height:34px;cursor:pointer;z-index:3"></div>';
+  }
+  var old = document.getElementById("egHits");
+  if (old) old.remove();
+  var hits = document.createElement("div");
+  hits.id = "egHits"; hits.style.cssText = "position:absolute;inset:0;z-index:3";
+  hits.innerHTML = o;
+  if (egAnsMode) {
+    for (var ai = 0; ai < egAnswer.length; ai++) {
+      egAnsMark(egAnswer[ai].fromRow, egAnswer[ai].fromCol);
+      egAnsMark(egAnswer[ai].toRow, egAnswer[ai].toCol);
+    }
+    if (egAnsFrom) egAnsMark(egAnsFrom.row, egAnsFrom.col);
+  }
+  bd.appendChild(hits);
+  document.getElementById("egCount").textContent = "共 " + egPieces.length + " 子（双方各需一将）";
+}
+function egFind(r, c) { for (var i = 0; i < egPieces.length; i++) { var p = egPieces[i]; if (p.row === r && p.col === c) return p; } return null; }
+var egAnswer = [];
+var egAnsMode = false;
+var egAnsFrom = null;
+function egAnsInfo() {
+  var n = document.getElementById("egAnsInfo");
+  var ta = document.getElementById("egAnsText");
+  var v = ta ? ta.value.trim() : "";
+  if (n) n.textContent = v ? ("已录 " + v.length + " 字") : "未录入";
+}
+function egAnsToggle() {
+  egAnsMode = !egAnsMode;
+  egAnsFrom = null;
+  document.getElementById("egAnsBtn").textContent = egAnsMode ? "完成录制" : "录制参考走法";
+  egMsg(egAnsMode ? "录制中：在棋盘上依次点击 起点→终点 记录每一步" : "已退出录制");
+  egBuildBoard();
+}
+function egAnsClear() {
+  var ta = document.getElementById("egAnsText");
+  if (ta) ta.value = "";
+  egAnsInfo();
+  egMsg("参考走法已清空");
+}
+function egCell(r, c) {
+  if (egAnsMode) {
+    if (!egAnsFrom) {
+      egAnsFrom = { row: r, col: c };
+      egBuildBoard();
+      egMsg("起点 (" + r + "," + c + ")，再点终点");
+      return;
+    }
+    if (egAnsFrom.row === r && egAnsFrom.col === c) { egAnsFrom = null; egBuildBoard(); egMsg("已取消起点"); return; }
+    egAnswer.push({ fromRow: egAnsFrom.row, fromCol: egAnsFrom.col, toRow: r, toCol: c });
+    egAnsFrom = null;
+    egAnsInfo();
+    egBuildBoard();
+    egMsg("已录第 " + egAnswer.length + " 步，继续或点完成录制");
+    return;
+  }
+  var ex = egFind(r, c);
+  if (ex) { egPieces.splice(egPieces.indexOf(ex), 1); egBuildBoard(); return; }
+  if (!egPick) { egMsg("请先在上方选择要放置的棋子"); return; }
+  if (egPieces.length >= 32) { egMsg("最多 32 子"); return; }
+  egPieces.push({ type: egPick.type, color: egPick.color, row: r, col: c });
+  egBuildBoard();
+}
+function egResetForm() {
+  egPieces = []; egPick = null; egAnswer = []; egAnsMode = false; egAnsFrom = null;
+  var ta = document.getElementById("egAnsText"); if (ta) ta.value = "";
+  egAnsInfo();
+  document.getElementById("egName").value = "";
+  document.getElementById("egGoal").value = "";
+  document.getElementById("egDiff").value = "1";
+  document.getElementById("egSide").value = "red";
+  document.getElementById("egFormTitle").textContent = "新建残局";
+  delete document.getElementById("egFormTitle").dataset.id;
+  egBuildBoard(); egMsg("");
+}
+function egSave() {
+  var name = document.getElementById("egName").value.trim();
+  if (!name) { egMsg("请输入残局名称"); return; }
+  var ks = egPieces.filter(function (p) { return p.type === "king"; });
+  if (ks.filter(function (p) { return p.color === 'red'; }).length !== 1 || ks.filter(function (p) { return p.color === 'black'; }).length !== 1) { egMsg('双方必须各有一将/帅'); return; }
+  var _ansTa = document.getElementById("egAnsText");
+  var body = { token: TOKEN, id: document.getElementById("egFormTitle").dataset.id || null, name: name, difficulty: Number(document.getElementById("egDiff").value) || 1, side: document.getElementById("egSide").value, goal: document.getElementById("egGoal").value.trim(), pieces: egPieces, solutionText: _ansTa ? _ansTa.value : "", enabled: 1 };
+  api('/api/admin/endgame/save', body).then(function (r) {
+    if (r && r.ok) { egMsg('✔ 已保存（ID ' + r.id + '）'); egList(); egResetForm(); }
+    else egMsg('✘ ' + ((r && r.error) || '保存失败'));
+  }).catch(function () { egMsg('网络异常'); });
+}
+function egList() {
+  api('/api/admin/endgame/list?token=' + encodeURIComponent(TOKEN)).then(function (r) {
+    var out = document.getElementById("egOut");
+    if (r && r.ok) {
+      var h = '<table><thead><tr><th>ID</th><th>名称</th><th>难度</th><th>执方</th><th>子数</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+      (r.list || []).forEach(function (p) {
+      h += "<tr><td>" + p.id + "</td><td>" + esc(p.name) + "</td><td>" + "★".repeat(p.difficulty || 1) + "</td><td>" + (p.side === 'red' ? '红' : '黑') + "</td><td>" + p.count + "</td><td>" + (p.enabled ? '上架' : '下架') + "</td><td>" + "<button style='width:auto;padding:3px 8px;font-size:12px' onclick='egToggle(" + p.id + ")'>" + (p.enabled ? '下架' : '上架') + "</button> <button style='width:auto;padding:3px 8px;font-size:12px' onclick='egEdit(" + p.id + ")'>编辑</button> <button style='width:auto;padding:3px 8px;font-size:12px;background:#8b2f2f;color:#fff' onclick='egDel(" + p.id + ")'>删</button></td></tr>";
+      });
+      out.innerHTML = h + "</tbody></table>";
+    } else { out.innerHTML = '<div class="err">加载失败</div>'; }
+  }).catch(function () { egMsg('网络异常'); });
+}
+function egToggle(id) {
+  api('/api/admin/endgame/op', { token: TOKEN, id: id, op: 'toggle' }).then(function (r) { if (r && r.ok) egList(); else egMsg('操作失败'); }).catch(function () { egMsg('网络异常'); });
+}
+function egDel(id) {
+  if (!confirm('确定删除残局 #' + id + '？')) return;
+  api('/api/admin/endgame/op', { token: TOKEN, id: id, op: 'delete' }).then(function (r) { if (r && r.ok) { egMsg('✔ 已删除'); egList(); } else egMsg('删除失败'); }).catch(function () { egMsg('网络异常'); });
+}
+function egEdit(id) {
+  api('/api/admin/endgame/list?token=' + encodeURIComponent(TOKEN)).then(function (r) {
+    if (!(r && r.ok)) { egMsg("加载失败"); return; }
+    var p = (r.list || []).filter(function (x) { return x.id === id; })[0];
+    if (!p) { egMsg("未找到该残局"); return; }
+    egPieces = JSON.parse(JSON.stringify(p.pieces || []));
+    egAnswer = [];
+    var ta2 = document.getElementById("egAnsText");
+    if (ta2) ta2.value = (typeof p.solution === "string") ? p.solution : "";
+    egAnsInfo();
+    document.getElementById("egName").value = p.name;
+    document.getElementById("egGoal").value = p.goal || "";
+    document.getElementById("egDiff").value = String(p.difficulty || 1);
+    document.getElementById("egSide").value = p.side || "red";
+    var ft = document.getElementById("egFormTitle");
+    ft.textContent = "编辑残局 #" + p.id;
+    ft.dataset.id = p.id;
+    egBuildBoard();
+    egMsg("编辑中：修改后点保存");
+  }).catch(function () { egMsg("网络异常"); });
+}
+egBuildPicker();
+egBuildBoard();
+egList();
+
+
+if (TOKEN) {
+  enter();
+}
+</script>
+</body>
+</html>
